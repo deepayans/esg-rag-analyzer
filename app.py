@@ -116,7 +116,7 @@ Format: [STATUS] - [reason]"""
             messages=[{"role": "user", "content": prompt}]
         )
         answer = response.choices[0].message.content.strip()
-        results.append({"Requirement": requirement, "Status": answer})
+        results.append({"requirement": requirement, "status": answer})
         time.sleep(25)
     
     return results
@@ -167,9 +167,9 @@ with tab2:
         st.markdown(f"### CSRD Gap Report: {selected_company}")
         
         # Count scores
-        disclosed = sum(1 for r in results if "✅" in r["Status"])
-        partial = sum(1 for r in results if "⚠️" in r["Status"])
-        missing = sum(1 for r in results if "❌" in r["Status"])
+        disclosed = sum(1 for r in results if "✅" in r.get("Status", r.get("status", "")))
+        partial = sum(1 for r in results if "⚠️" in r.get("Status", r.get("status", "")))
+        missing = sum(1 for r in results if "❌" in r.get("Status", r.get("status", "")))
         
         col1, col2, col3 = st.columns(3)
         col1.metric("✅ Disclosed", disclosed)
@@ -178,6 +178,6 @@ with tab2:
         
         st.markdown("### Detailed Results")
         for r in results:
-            st.markdown(f"**{r['Requirement']}**")
-            st.write(r['Status'])
+            st.markdown(f"**{r.get('Requirement', r.get('requirement', ''))}**")
+            st.write(r.get('Status', r.get('status', '')))
             st.divider()
