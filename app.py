@@ -4,17 +4,19 @@ import time
 from pymongo import MongoClient
 from mistralai.client import Mistral
 import voyageai
-from dotenv import load_dotenv
 
-# Load credentials
-load_dotenv()
+# Load credentials from Streamlit secrets
+MONGODB_URI = st.secrets["MONGODB_URI"]
+VOYAGE_API_KEY = st.secrets["VOYAGE_API_KEY"]
+MISTRAL_API_KEY = st.secrets["MISTRAL_API_KEY"]
 
 # Connections
-client = MongoClient(os.getenv("MONGODB_URI"))
+client = MongoClient(MONGODB_URI)
 db = client["esg_rag"]
 collection = db["documents"]
-vc = voyageai.Client(api_key=os.getenv("VOYAGE_API_KEY"))
-mistral = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
+gap_collection = db["gap_analysis"]
+vc = voyageai.Client(api_key=VOYAGE_API_KEY)
+mistral = Mistral(api_key=MISTRAL_API_KEY)
 
 # Companies list
 COMPANIES = [
@@ -84,6 +86,13 @@ Answer:"""
     return response.choices[0].message.content, results
 
 def analyze_csrd(company_name):
+    # Try to load pre-computed results from MongoDB
+    stored = gap_collection.find_one({"company": company_name})
+    
+    if stored:
+        return stored["results"]
+    
+    # Fallback — compute on the fly if not stored
     results = []
     for requirement in CSRD_CHECKLIST:
         chunks = search_esg(requirement, company=company_name, top_k=3)
@@ -109,6 +118,7 @@ Format: [STATUS] - [reason]"""
         answer = response.choices[0].message.content.strip()
         results.append({"Requirement": requirement, "Status": answer})
         time.sleep(25)
+    
     return results
 
 # Streamlit UI
@@ -146,11 +156,12 @@ with tab1:
 # Tab 2 — CSRD Gap Analysis
 with tab2:
     st.subheader("CSRD Compliance Gap Analysis")
+    st.caption("Pre-computed results load instantly for all 14 companies")
     
     selected_company = st.selectbox("Select a company", COMPANIES)
     
     if st.button("Generate Gap Report", key="gap"):
-        with st.spinner(f"Analyzing {selected_company} against CSRD requirements... (this takes ~5 minutes)"):
+        with st.spinner(f"Loading gap analysis for {selected_company}..."):
             results = analyze_csrd(selected_company)
         
         st.markdown(f"### CSRD Gap Report: {selected_company}")
