@@ -1,0 +1,6 @@
+pymongo
+voyageai
+mistralai
+streamlit
+pypdf2
+python-dotenv
